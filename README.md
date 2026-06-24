@@ -1,167 +1,261 @@
-# Jellyfin TMDB Skills
+# Jellyfin Auto Namer
 
 [中文](#中文) | [English](#english)
 
 ## 中文
 
-一个面向通用 AI Agent 的 Jellyfin 媒体库自动命名技能包。它把 Jellyfin 官方媒体命名规则整理成可复用的说明、参考资料和脚本，帮助 Agent 或用户为电影和剧集生成更容易被 Jellyfin 正确识别、刮削和匹配元数据的文件夹名与文件名。
+### 项目简介
 
-当前包含：
+Jellyfin Auto Namer 是一个用于整理 Jellyfin 媒体库命名的 AI Agent 技能。
 
-- `jellyfin-auto-namer`：Jellyfin 电影/剧集命名技能，包含规则说明、官方规则摘要和安全的 dry-run 重命名计划脚本。
+它可以帮助你按 Jellyfin 官方推荐的格式生成电影和剧集的重命名计划，让 Jellyfin 更容易识别影片、匹配元数据，并减少刮削失败的问题。
 
-目录结构：
+本项目适用于：
+
+- 整理电影和剧集文件名
+- 添加 TMDB、TVDB、IMDb 等 provider ID
+- 规范 `Season 01`、`S01E01`、多集文件名
+- 同步处理字幕、音轨等 sidecar 文件
+- 在真正改名之前生成安全的 dry-run 计划
+
+### 安装
+
+#### 方法一：通过 npx 安装
+
+```bash
+npx skills add https://github.com/silvernoo/jellyfin-auto-namer.git
+```
+
+#### 方法二：通过 Git 克隆
+
+```bash
+git clone https://github.com/silvernoo/jellyfin-auto-namer.git ~/.codex/skills/jellyfin-auto-namer
+```
+
+Windows 用户可以克隆到：
+
+```text
+%USERPROFILE%\.codex\skills\jellyfin-auto-namer
+```
+
+#### 验证安装
+
+重启或重新加载支持 skills 的客户端后，确认技能目录结构如下：
 
 ```text
 jellyfin-auto-namer/
 |-- SKILL.md
+|-- README.md
 |-- references/
-|   |-- official-rules.md
-|-- scripts/
-    |-- plan_jellyfin_names.py
+|   `-- official-rules.md
+`-- scripts/
+    `-- plan_jellyfin_names.py
 ```
 
-### 功能
+### 使用
 
-- 电影命名：`Movie Name (year) [tmdbid-...] [imdbid-...]`
-- 剧集命名：`Series Name (year) [tvdbid-...] / Season 01 / Series Name S01E01.mkv`
-- 支持 TMDB、TVDB、IMDB provider ID
-- 规范化 `Season 01`、`S01E01`、多集 `S01E02-E03`
-- 处理电影多版本：`Movie Name (year) - 2160p.mkv`
-- 保留并同步重命名字幕/音轨 sidecar 文件
-- 默认 dry-run，只输出计划，不直接修改媒体库
-- 避免 Jellyfin 和 Windows 不友好的路径字符
+#### 在 AI Agent 中使用
 
-### 给 AI Agent 使用
-
-让你的 Agent 读取：
-
-- `jellyfin-auto-namer/SKILL.md`
-- `jellyfin-auto-namer/references/official-rules.md`
-
-建议提示词：
+你可以这样对 Agent 说：
 
 ```text
-Use the Jellyfin auto-naming skill in ./jellyfin-auto-namer to inspect this media folder, verify metadata when needed, and produce a safe dry-run rename plan before applying any changes.
+请使用 jellyfin-auto-namer 技能检查这个媒体目录，并先生成 dry-run 重命名计划。
 ```
 
-### 直接运行脚本
+也可以指定媒体库类型：
+
+```text
+请用 jellyfin-auto-namer 整理 D:\Media\Movies，这是电影库。先不要实际改名。
+```
+
+#### 直接运行脚本
 
 生成电影库重命名计划：
 
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Movies" --library movie
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Movies" --library movie
 ```
 
-生成单个剧集目录重命名计划：
+生成剧集目录重命名计划：
 
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Shows\Series.Name.2021" --library show --title "Series Name" --year 2021 --provider tvdbid=12345
-```
-
-确认计划后再执行：
-
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Movies" --library movie --apply
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Shows/Series.Name.2021" --library show --title "Series Name" --year 2021 --provider tvdbid=12345
 ```
 
 输出 JSON：
 
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Movies" --library movie --json
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Movies" --library movie --json
 ```
 
-### Jellyfin 官方规则摘要
+确认计划无误后再执行实际改名：
 
-- 电影建议一部电影一个文件夹，视频文件名与父文件夹同名。
-- 剧集建议使用剧集文件夹、`Season NN` 文件夹和 `SxxEyy` 文件名。
-- 年份和 provider ID 可选，但能显著提高匹配准确率。
-- Jellyfin 官方不推荐使用 `Mixed Movies and Shows` library type。
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Movies" --library movie --apply
+```
 
-参考：
+### 命名示例
+
+电影：
+
+```text
+Movies/
+`-- Movie Name (2024) [tmdbid-12345]/
+    `-- Movie Name (2024) [tmdbid-12345].mkv
+```
+
+剧集：
+
+```text
+Shows/
+`-- Series Name (2021) [tvdbid-12345]/
+    `-- Season 01/
+        `-- Series Name S01E01.mkv
+```
+
+### 文件说明
+
+- `SKILL.md` - 技能说明和 Agent 工作流程
+- `references/official-rules.md` - Jellyfin 官方命名规则摘要
+- `scripts/plan_jellyfin_names.py` - dry-run 重命名计划脚本
+- `README.md` - 项目说明
+
+### 参考资源
 
 - [Jellyfin Movies](https://jellyfin.org/docs/general/server/media/movies/)
 - [Jellyfin TV Shows](https://jellyfin.org/docs/general/server/media/shows/)
 - [Jellyfin Metadata Provider Identifiers](https://jellyfin.org/docs/general/server/metadata/identifiers/)
 
+### 说明
+
+脚本默认只生成计划，不会修改文件。只有在添加 `--apply` 后才会执行重命名；如果发现警告，脚本会拒绝直接应用。
+
+---
+
 ## English
 
-A Jellyfin media auto-naming skill package for general-purpose AI agents. It packages Jellyfin's official media organization rules into reusable instructions, references, and scripts so agents or users can create movie and TV show paths that are easier for Jellyfin to identify, scrape, and match with metadata providers.
+### Overview
 
-Included:
+Jellyfin Auto Namer is an AI-agent skill for organizing Jellyfin media library names.
 
-- `jellyfin-auto-namer`: a Jellyfin movie/TV naming skill with rules, official-rule references, and a safe dry-run rename planner.
+It helps generate Jellyfin-friendly rename plans for movies and TV shows, making files easier for Jellyfin to identify and match with metadata providers.
 
-Structure:
+Use it to:
+
+- Rename movie and TV show files
+- Add TMDB, TVDB, and IMDb provider IDs
+- Normalize `Season 01`, `S01E01`, and multi-episode names
+- Keep subtitle and audio sidecar files aligned
+- Generate a safe dry-run plan before changing files
+
+### Installation
+
+#### Option 1: Install with npx
+
+```bash
+npx skills add https://github.com/silvernoo/jellyfin-auto-namer.git
+```
+
+#### Option 2: Clone with Git
+
+```bash
+git clone https://github.com/silvernoo/jellyfin-auto-namer.git ~/.codex/skills/jellyfin-auto-namer
+```
+
+On Windows, clone it to:
+
+```text
+%USERPROFILE%\.codex\skills\jellyfin-auto-namer
+```
+
+#### Verify Installation
+
+After restarting or reloading your skills-enabled client, the folder should look like this:
 
 ```text
 jellyfin-auto-namer/
 |-- SKILL.md
+|-- README.md
 |-- references/
-|   |-- official-rules.md
-|-- scripts/
-    |-- plan_jellyfin_names.py
+|   `-- official-rules.md
+`-- scripts/
+    `-- plan_jellyfin_names.py
 ```
 
-### Features
+### Usage
 
-- Movie naming: `Movie Name (year) [tmdbid-...] [imdbid-...]`
-- TV naming: `Series Name (year) [tvdbid-...] / Season 01 / Series Name S01E01.mkv`
-- TMDB, TVDB, and IMDB provider IDs
-- Normalizes `Season 01`, `S01E01`, and multi-episode `S01E02-E03` names
-- Handles movie versions such as `Movie Name (year) - 2160p.mkv`
-- Preserves and renames subtitle/audio sidecar files with matching video stems
-- Dry-run by default, so media libraries are not modified without confirmation
-- Avoids path characters that are problematic for Jellyfin and Windows
+#### Use With An AI Agent
 
-### Use With AI Agents
-
-Point your agent at:
-
-- `jellyfin-auto-namer/SKILL.md`
-- `jellyfin-auto-namer/references/official-rules.md`
-
-Suggested prompt:
+Ask your agent:
 
 ```text
-Use the Jellyfin auto-naming skill in ./jellyfin-auto-namer to inspect this media folder, verify metadata when needed, and produce a safe dry-run rename plan before applying any changes.
+Use the jellyfin-auto-namer skill to inspect this media folder and create a dry-run rename plan first.
 ```
 
-### Run The Planner Directly
+You can also specify the library type:
 
-Generate a movie-library rename plan:
-
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Movies" --library movie
+```text
+Use jellyfin-auto-namer to organize D:\Media\Movies as a movie library. Do not rename files yet.
 ```
 
-Generate a single show-folder rename plan:
+#### Run The Script Directly
 
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Shows\Series.Name.2021" --library show --title "Series Name" --year 2021 --provider tvdbid=12345
+Create a movie-library rename plan:
+
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Movies" --library movie
 ```
 
-Apply only after reviewing the plan:
+Create a show-folder rename plan:
 
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Movies" --library movie --apply
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Shows/Series.Name.2021" --library show --title "Series Name" --year 2021 --provider tvdbid=12345
 ```
 
-Emit JSON:
+Print JSON:
 
-```powershell
-python .\jellyfin-auto-namer\scripts\plan_jellyfin_names.py "D:\Media\Movies" --library movie --json
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Movies" --library movie --json
 ```
 
-### Jellyfin Rule Summary
+Apply changes only after reviewing the plan:
 
-- Movies should generally use one folder per movie, with the video file matching the parent folder name.
-- TV shows should use a series folder, `Season NN` folders, and `SxxEyy` episode filenames.
-- Year and provider IDs are optional but improve matching accuracy.
-- Jellyfin's official docs do not recommend the `Mixed Movies and Shows` library type.
+```bash
+python scripts/plan_jellyfin_names.py "D:/Media/Movies" --library movie --apply
+```
 
-References:
+### Naming Examples
+
+Movie:
+
+```text
+Movies/
+`-- Movie Name (2024) [tmdbid-12345]/
+    `-- Movie Name (2024) [tmdbid-12345].mkv
+```
+
+TV show:
+
+```text
+Shows/
+`-- Series Name (2021) [tvdbid-12345]/
+    `-- Season 01/
+        `-- Series Name S01E01.mkv
+```
+
+### Files
+
+- `SKILL.md` - Skill instructions and agent workflow
+- `references/official-rules.md` - Summary of Jellyfin naming rules
+- `scripts/plan_jellyfin_names.py` - Dry-run rename planner
+- `README.md` - Project documentation
+
+### References
 
 - [Jellyfin Movies](https://jellyfin.org/docs/general/server/media/movies/)
 - [Jellyfin TV Shows](https://jellyfin.org/docs/general/server/media/shows/)
 - [Jellyfin Metadata Provider Identifiers](https://jellyfin.org/docs/general/server/metadata/identifiers/)
+
+### Note
+
+The script defaults to dry-run mode and does not modify files. It only renames files when `--apply` is provided, and it refuses to apply if warnings are found.
